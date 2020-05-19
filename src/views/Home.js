@@ -2,56 +2,50 @@ import React from 'react';
 
 import { Text, View, ActivityIndicator, FlatList, StyleSheet, SafeAreaView, Button, Image, } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
-//import {ListItem} from '../components/ListItem'
+import { retrieveHistoric, clearHistoric } from '../../helpers';
 
-
-
-class ListItem extends React.Component{
-    _onPress(item){
-        this.props.navigation.navigate('Details',
-        {
-            product_name: item.product_name,
-            item: item
-        })
-    }
-
-    render() {
-        return (
-            <View style={styles.lineContainer}>
-                <TouchableOpacity onPress={()=> this._onPress(this.props.item)}>
-                    <Text style={styles.textLino}>{this.props.item.product_name}</Text>
-                </TouchableOpacity>
-            </View>
-        )
-    }
-}
-
+import ItemList from '../components/ItemList'
 
 export default class HomeScreen extends React.Component {
     constructor(props){
         super(props);
         this.state = {
-            isLoading: true
-        }
-
-        this.historic = JSON.parse(localStorage.getItem('historic')) ? JSON.parse(localStorage.getItem('historic')) : [];
+            isLoading: true,
+            historic: []
+        };
     }
 
-    componentDidMount(){
-        return fetch('https://fr-en.openfoodfacts.org/category/pizzas/1.json')
-            .then((response) => response.json())
-            .then((responseJson) => {
+    clearHistoricOnHome = async () => {
+        await clearHistoric().then(() => this.setState({historic: []}));
+    };
 
+    getHistoric = async () => {
+        await retrieveHistoric()
+            .then(res => {
+                setTimeout( () => {
+                    this.setState({
+                        isLoading: false,
+                    });
+                }, 1000);
 
-                this.setState({
-                    isLoading: false,
-                    dataSource: responseJson.products,
-                });
-
-            })
-            .catch((error) =>{
-                console.error(error);
+                if (res) {
+                    this.setState({
+                        historic: res
+                    })
+                }
             });
+    };
+
+    async componentDidMount(){
+        await this.getHistoric();
+
+        this.props.navigation.addListener('focus', () => {
+            this.setState({
+                isLoading: true,
+            });
+
+            this.getHistoric();
+        });
     }
 
     render() {
@@ -61,24 +55,24 @@ export default class HomeScreen extends React.Component {
                     <ActivityIndicator/>
                 </View>
             )
+        } else if (this.state.historic && this.state.historic.length === 0) {
+            return(
+                <SafeAreaView style={{flex: 1, paddingTop:20, alignItems: 'center', justifyContent: 'center'}}>
+                    <Text>Aucun produits dans l'historique</Text>
+                </SafeAreaView>
+            )
         }
 
         return(
             <SafeAreaView style={{flex: 1, paddingTop:20}}>
 
                 <FlatList
-                    data={this.state.dataSource}
-                    renderItem={({item}) => <ListItem item={item} navigation={this.props.navigation} />}
-                    keyExtractor={({id}, index) => id}
+                    data={this.state.historic}
+                    renderItem={({item}) => <ItemList item={item} navigation={this.props.navigation} />}
+                    keyExtractor={({id}, index) => index.toString()}
                 />
+                <Button title={'Delete historic'} onPress={this.clearHistoricOnHome}></Button>
             </SafeAreaView>
         );
     }
 }
-
-const styles = StyleSheet.create({
-    lineContainer: {
-        height: 40,
-        padding: 10,
-    },
-});

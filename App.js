@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import {AsyncStorage, StyleSheet, Text, View} from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -25,7 +25,8 @@ export default class App extends React.Component {
   constructor(props){
     super(props);
     this.state = {
-      isReady: false,
+        isReady: false,
+        history: []
     };
   }
 
@@ -34,7 +35,7 @@ export default class App extends React.Component {
         <NavigationContainer>
           <Tab.Navigator>
             <Tab.Screen name="Home" component={HomeStack} />
-            <Tab.Screen name="Scan" component={Scan} />
+            <Tab.Screen name="Scan" component={Scan}/>
           </Tab.Navigator>
         </NavigationContainer>
     );

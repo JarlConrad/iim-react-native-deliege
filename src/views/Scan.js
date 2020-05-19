@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, Button } from 'react-native';
+import {Text, View, Button, StyleSheet, Image} from 'react-native';
 import { Camera } from 'expo-camera';
-import AsyncStorage from '@react-native-community/async-storage';
+import { storeHistoric } from '../../helpers';
+
+import ItemList from '../components/ItemList'
 
 const { FlashMode: CameraFlashModes, Type: CameraTypes } = Camera.Constants;
 
@@ -14,15 +16,20 @@ export default class Scan extends React.Component {
             flashState: Camera.Constants.FlashMode.off,
             hasCameraPermission: null,
             type: Camera.Constants.Type.back,
-            scanned: null
+            scanned: null,
+            itemScanned: null
         };
-
-        this.historic = JSON.parse(localStorage.getItem('historic')) ? JSON.parse(localStorage.getItem('historic')) : [];
     }
 
     async componentDidMount() {
         const status = await Camera.requestPermissionsAsync();
         this.setState({ hasCameraPermission: status.status === 'granted' });
+
+        this.props.navigation.addListener('focus', () => {
+            this.setState({
+                scanned: null
+            });
+        });
     }
 
     changeFlash(){
@@ -31,20 +38,18 @@ export default class Scan extends React.Component {
             this.setState({isFlashOn:true, flashState: Camera.Constants.FlashMode.torch})
     }
 
-    handleBarCodeScanned = ({ type, data }) => {
-        // handleBarCodeScanned = async ({ type, data }) => {
-        this.setState({scanned: true});
-        console.log('Scan done');
-        console.log(type);
-        console.log(data);
-        /*try {
-            this.historic.push(data);
-            await AsyncStorage.setItem('historic', JSON.stringify(this.historic));
-        } catch (e) {
-
-        }*/
-        /*this.props.navigation.navigate('Details', { data: data })
-        alert(`Bar code with type ${type} and data ${data} has been scanned!`);*/
+    handleBarCodeScanned = async ({ type, data }) => {
+        await fetch(`https://world.openfoodfacts.org/api/v0/product/${data}.json`)
+            .then((res) => res.json())
+            .then(async (dataProduct) => {
+                this.setState({
+                    scanned: true,
+                    itemScanned: dataProduct
+                });
+                await storeHistoric(dataProduct);
+                console.log('Scan done');
+            });
+        /*this.props.navigation.navigate('Details', { data: data })*/
     };
 
 
@@ -74,13 +79,13 @@ export default class Scan extends React.Component {
                     >
 
                         <Button title={'Flash'} onPress={()=> this.changeFlash()} />
-                        <Button title={'Recommencer'} onPress={()=> this.setState({scanned: null})} />
-
+                        <Button title={'Recommencer'} onPress={()=> this.setState({scanned: null, itemScanned: null})} />
+                        {this.state.scanned && this.state.itemScanned ?
+                            <ItemList item={this.state.itemScanned} navigation={this.props.navigation} /> :
+                            null}
                     </Camera>
                 </View>
             );
         }
     }
-
-
 }
